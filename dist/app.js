@@ -47,7 +47,7 @@ app.use(errorHandler_1.errorHandler);
 const PORT = process.env.PORT || 5000;
 const startServer = async () => {
     try {
-        await (0, database_1.connectDB)();
+        //await (0, database_1.connectDB)();
         app.listen(PORT, () => {
             logger_1.default.info(`✓ Server running on http://localhost:${PORT}`);
             logger_1.default.info(`✓ API available at http://localhost:${PORT}${basePath}`);
