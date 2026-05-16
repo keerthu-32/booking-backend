@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: booking-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: API_VERSION
+        value: v1
+      - key: FRONTEND_URL
+        value: https://booking-frontend-n6pv.onrender.com
+      - key: LOG_LEVEL
+        value: info
+      - key: BCRYPT_SALT_ROUNDS
+        value: 12
