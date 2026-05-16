@@ -47,12 +47,12 @@ exports.flightSearchSchema = zod_1.z.object({
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)')
         .optional(),
-    passengers: zod_1.z.number().int().min(1, 'At least 1 passenger required').default(1),
+    passengers: zod_1.z.coerce.number().int().min(1, 'At least 1 passenger required').default(1),
     cabinClass: zod_1.z.enum(['economy', 'business', 'first']).optional(),
     sortBy: zod_1.z.enum(['price', 'duration', 'departure']).optional(),
     order: zod_1.z.enum(['asc', 'desc']).optional(),
-    page: zod_1.z.number().int().min(1).default(1),
-    limit: zod_1.z.number().int().min(1).max(50).default(10),
+    page: zod_1.z.coerce.number().int().min(1).default(1),
+    limit: zod_1.z.coerce.number().int().min(1).max(50).default(10),
 });
 // Booking Validators
 exports.createBookingSchema = zod_1.z.object({

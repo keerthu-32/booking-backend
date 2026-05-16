@@ -4,11 +4,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.startServer = exports.app = void 0;
+require("dotenv/config");
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const morgan_1 = __importDefault(require("morgan"));
-const database_1 = require("./config/database");
 const errorHandler_1 = require("./middleware/errorHandler");
 const logger_1 = __importDefault(require("./config/logger"));
 // Routes
@@ -20,7 +20,27 @@ const app = (0, express_1.default)();
 exports.app = app;
 // Middleware
 app.use((0, helmet_1.default)());
-app.use((0, cors_1.default)({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
+// CORS configuration - allow multiple origins
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://booking-frontend-n6pv.onrender.com',
+    process.env.FRONTEND_URL
+].filter(Boolean);
+app.use((0, cors_1.default)({
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin)
+            return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        }
+        else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
 app.use((0, morgan_1.default)('combined', { stream: { write: (message) => logger_1.default.info(message.trim()) } }));
 app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ limit: '10mb', extended: true }));
@@ -47,7 +67,7 @@ app.use(errorHandler_1.errorHandler);
 const PORT = process.env.PORT || 5000;
 const startServer = async () => {
     try {
-        //await (0, database_1.connectDB)();
+        //await connectDB();
         app.listen(PORT, () => {
             logger_1.default.info(`✓ Server running on http://localhost:${PORT}`);
             logger_1.default.info(`✓ API available at http://localhost:${PORT}${basePath}`);
