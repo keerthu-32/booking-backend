@@ -43,13 +43,10 @@ export const changePasswordSchema = z.object({
 
 // Flight Validators
 export const flightSearchSchema = z.object({
-  origin: z.string().optional(),
-  destination: z.string().optional(),
-  departureDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)').optional(),
-  returnDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)')
-    .optional(),
+  origin: z.string().default(''),
+  destination: z.string().default(''),
+  departureDate: z.string().default(''),
+  returnDate: z.string().optional(),
   passengers: z.coerce.number().int().min(1, 'At least 1 passenger required').default(1),
   cabinClass: z.enum(['economy', 'business', 'first']).optional(),
   sortBy: z.enum(['price', 'duration', 'departure']).optional(),
