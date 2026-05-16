@@ -50,12 +50,12 @@ export const flightSearchSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)')
     .optional(),
-  passengers: z.number().int().min(1, 'At least 1 passenger required').default(1),
+  passengers: z.coerce.number().int().min(1, 'At least 1 passenger required').default(1),
   cabinClass: z.enum(['economy', 'business', 'first']).optional(),
   sortBy: z.enum(['price', 'duration', 'departure']).optional(),
   order: z.enum(['asc', 'desc']).optional(),
-  page: z.number().int().min(1).default(1),
-  limit: z.number().int().min(1).max(50).default(10),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
 });
 
 // Booking Validators
