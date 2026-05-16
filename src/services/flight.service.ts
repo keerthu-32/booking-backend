@@ -2,9 +2,9 @@ import { Flight, IFlight } from '../models/Flight';
 import { NotFoundError } from '../utils/errors';
 
 export interface FlightSearchParams {
-  origin: string;
-  destination: string;
-  departureDate: string;
+  origin?: string;
+  destination?: string;
+  departureDate?: string;
   returnDate?: string;
   passengers: number;
   cabinClass?: 'economy' | 'business' | 'first';
@@ -32,15 +32,27 @@ export class FlightService {
       limit,
     } = params;
 
-    // Build query
-    const query: any = {
-      'origin.iataCode': origin.toUpperCase(),
-      'destination.iataCode': destination.toUpperCase(),
-      departureTime: {
+    // Build query - only add filters if provided
+    const query: any = {};
+    
+    if (origin) {
+      query['origin.iataCode'] = origin.toUpperCase();
+    }
+    
+    if (destination) {
+      query['destination.iataCode'] = destination.toUpperCase();
+    }
+    
+    if (departureDate) {
+      query.departureTime = {
         $gte: new Date(departureDate),
         $lt: new Date(new Date(departureDate).getTime() + 24 * 60 * 60 * 1000),
-      },
-    };
+      };
+    }
+
+    if (cabinClass) {
+      query['cabinClasses.type'] = cabinClass;
+    }
 
     // Build sort object
     const sortObj: any = {};
