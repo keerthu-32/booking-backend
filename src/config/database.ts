@@ -4,11 +4,20 @@ export const connectDB = async (): Promise<void> => {
   try {
     const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/flight_booking';
 
-    await mongoose.connect(mongoUri);
+    if (!process.env.MONGO_URI) {
+      console.warn('⚠ MONGO_URI not set, using default localhost connection');
+    }
+
+    await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 30000, // Increase timeout to 30 seconds
+      socketTimeoutMS: 45000,
+    });
     console.log('✓ MongoDB connected successfully');
+    console.log('✓ Database:', mongoose.connection.db?.databaseName);
   } catch (error) {
     console.error('✗ MongoDB connection failed:', error);
-    process.exit(1);
+    console.error('✗ Connection string prefix:', process.env.MONGO_URI?.substring(0, 30));
+    throw error; // Don't exit, let the app handle it
   }
 };
 

@@ -53,6 +53,17 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Debug endpoint - check environment
+app.get('/debug/env', (req, res) => {
+  res.status(200).json({
+    nodeEnv: process.env.NODE_ENV,
+    port: process.env.PORT,
+    mongoUriSet: !!process.env.MONGO_URI,
+    mongoUriPrefix: process.env.MONGO_URI?.substring(0, 20) + '...',
+    frontendUrl: process.env.FRONTEND_URL,
+  });
+});
+
 // API Routes
 const apiVersion = process.env.API_VERSION || 'v1';
 const basePath = `/api/${apiVersion}`;
@@ -73,7 +84,12 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {
-    await connectDB();
+    // Try to connect to MongoDB, but don't fail if it doesn't work
+    try {
+      await connectDB();
+    } catch (dbError) {
+      logger.error('MongoDB connection failed, but starting server anyway:', dbError);
+    }
 
     app.listen(PORT, () => {
       logger.info(`✓ Server running on http://localhost:${PORT}`);
