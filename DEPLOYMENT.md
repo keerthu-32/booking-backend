@@ -90,8 +90,8 @@ AMADEUS_BASE_URL=https://api.amadeus.com
 
 3. **Verify Deployment**
    - Check build logs for errors
-   - Test health endpoint: `https://booking-backend-6-eaw5.onrender.com/health`
-   - Test API endpoint: `https://booking-backend-6-eaw5.onrender.com/api/v1/flights/search`
+   - Test health endpoint: `https://booking-backend-4-8bxx.onrender.com/health`
+   - Test API endpoint: `https://booking-backend-4-8bxx.onrender.com/api/v1/flights/search`
 
 ## MongoDB Atlas Setup
 
