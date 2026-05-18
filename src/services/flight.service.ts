@@ -156,9 +156,6 @@ export class FlightService {
       throw new NotFoundError('Flight not found');
     }
   }
-}
-
-export const flightService = new FlightService();
 
   async getUniqueAirports(): Promise<{
     origins: Array<{ iataCode: string; city: string; country: string }>;
