@@ -7,8 +7,8 @@ const router = Router();
 // Public routes
 router.get('/airports', flightController.getAirports);
 router.get('/search', optionalAuth, flightController.searchFlights);
-router.get('/:id', optionalAuth, flightController.getFlightDetails);
 router.get('/:id/seats', optionalAuth, flightController.getSeatAvailability);
+router.get('/:id', optionalAuth, flightController.getFlightDetails);
 
 // Admin routes
 router.post('/', authenticateToken, authorizeRole('admin'), flightController.createFlight);
