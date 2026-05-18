@@ -5,6 +5,7 @@ import { authenticateToken, authorizeRole, optionalAuth } from '../middleware/au
 const router = Router();
 
 // Public routes
+router.get('/airports', flightController.getAirports);
 router.get('/search', optionalAuth, flightController.searchFlights);
 router.get('/:id', optionalAuth, flightController.getFlightDetails);
 router.get('/:id/seats', optionalAuth, flightController.getSeatAvailability);

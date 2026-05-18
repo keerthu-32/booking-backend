@@ -24,6 +24,17 @@ export const searchFlights = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+export const getAirports = catchAsync(async (req: Request, res: Response) => {
+  const result = await flightService.getUniqueAirports();
+
+  res.status(200).json({
+    success: true,
+    statusCode: 200,
+    message: 'Airports retrieved successfully',
+    data: result,
+  });
+});
+
 export const getFlightDetails = catchAsync(async (req: Request, res: Response) => {
   const flight = await flightService.getFlightById(req.params.id);
 

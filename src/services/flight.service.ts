@@ -159,3 +159,53 @@ export class FlightService {
 }
 
 export const flightService = new FlightService();
+
+  async getUniqueAirports(): Promise<{
+    origins: Array<{ iataCode: string; city: string; country: string }>;
+    destinations: Array<{ iataCode: string; city: string; country: string }>;
+  }> {
+    // Get unique origins
+    const origins = await Flight.aggregate([
+      {
+        $group: {
+          _id: '$origin.iataCode',
+          city: { $first: '$origin.city' },
+          country: { $first: '$origin.country' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          iataCode: '$_id',
+          city: 1,
+          country: 1,
+        },
+      },
+      { $sort: { iataCode: 1 } },
+    ]);
+
+    // Get unique destinations
+    const destinations = await Flight.aggregate([
+      {
+        $group: {
+          _id: '$destination.iataCode',
+          city: { $first: '$destination.city' },
+          country: { $first: '$destination.country' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          iataCode: '$_id',
+          city: 1,
+          country: 1,
+        },
+      },
+      { $sort: { iataCode: 1 } },
+    ]);
+
+    return { origins, destinations };
+  }
+}
+
+export const flightService = new FlightService();
