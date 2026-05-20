@@ -3,10 +3,18 @@ import { Booking } from '../models/Booking';
 import { NotFoundError, ValidationError } from '../utils/errors';
 import Razorpay from 'razorpay';
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
-});
+// Lazy initialization - only create when first used, after env vars are loaded
+let razorpayInstance: Razorpay | null = null;
+
+function getRazorpay(): Razorpay {
+  if (!razorpayInstance) {
+    razorpayInstance = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID || '',
+      key_secret: process.env.RAZORPAY_KEY_SECRET || '',
+    });
+  }
+  return razorpayInstance;
+}
 
 export interface InitiatePaymentData {
   bookingId: string;
@@ -31,7 +39,7 @@ export class PaymentService {
     }
 
     // Create Razorpay order (amount in paise = USD cents equivalent for testing)
-    const order = await razorpay.orders.create({
+    const order = await getRazorpay().orders.create({
       amount: Math.round(booking.fareBreakdown.totalAmount * 100),
       currency: 'INR', // Razorpay test supports INR
       receipt: booking.bookingReference,
