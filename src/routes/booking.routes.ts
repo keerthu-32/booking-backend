@@ -12,5 +12,6 @@ router.put('/:id/cancel', authenticateToken, bookingController.cancelBooking);
 
 // Admin routes
 router.get('/admin/all', authenticateToken, authorizeRole('admin'), bookingController.getAllBookings);
+router.get('/admin/analytics', authenticateToken, authorizeRole('admin'), bookingController.getAnalytics);
 
 export default router;
