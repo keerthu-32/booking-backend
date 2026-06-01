@@ -4,14 +4,14 @@ import { authenticateToken, authorizeRole } from '../middleware/auth';
 
 const router = Router();
 
+// Admin routes
+router.get('/admin/all', authenticateToken, authorizeRole('admin'), bookingController.getAllBookings);
+router.get('/admin/analytics', authenticateToken, authorizeRole('admin'), bookingController.getAnalytics);
+
 // Private routes
 router.post('/', authenticateToken, bookingController.createBooking);
 router.get('/', authenticateToken, bookingController.getUserBookings);
 router.get('/:id', authenticateToken, bookingController.getBooking);
 router.put('/:id/cancel', authenticateToken, bookingController.cancelBooking);
-
-// Admin routes
-router.get('/admin/all', authenticateToken, authorizeRole('admin'), bookingController.getAllBookings);
-router.get('/admin/analytics', authenticateToken, authorizeRole('admin'), bookingController.getAnalytics);
 
 export default router;

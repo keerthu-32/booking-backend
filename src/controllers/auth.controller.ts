@@ -72,6 +72,21 @@ export const refreshToken = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+export const me = catchAsync(async (req: Request, res: Response) => {
+  if (!req.userId) {
+    throw new ValidationError('User not authenticated');
+  }
+
+  const user = await authService.getCurrentUser(req.userId);
+
+  res.status(200).json({
+    success: true,
+    statusCode: 200,
+    message: 'User profile retrieved successfully',
+    data: user,
+  });
+});
+
 export const logout = catchAsync(async (req: Request, res: Response) => {
   if (!req.userId) {
     throw new ValidationError('User not found');

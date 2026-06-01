@@ -3,6 +3,30 @@ import { generateAccessToken, generateRefreshToken } from '../utils/jwt';
 import { UnauthorizedError, ValidationError, ConflictError } from '../utils/errors';
 
 export class AuthService {
+  async getCurrentUser(userId: string): Promise<Partial<IUser>> {
+    const user = await User.findById(userId).select('-passwordHash -refreshToken');
+
+    if (!user) {
+      throw new UnauthorizedError('User not found');
+    }
+
+    return {
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone,
+      dateOfBirth: user.dateOfBirth,
+      passportNumber: user.passportNumber,
+      nationality: user.nationality,
+      preferences: user.preferences,
+      role: user.role,
+      isVerified: user.isVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+  }
+
   async register(userData: {
     firstName: string;
     lastName: string;
