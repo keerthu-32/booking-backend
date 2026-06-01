@@ -27,6 +27,63 @@ export class AuthService {
     };
   }
 
+  async updateCurrentUser(
+    userId: string,
+    updates: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+      dateOfBirth?: string;
+      passportNumber?: string;
+      nationality?: string;
+      preferences?: {
+        seatPreference?: 'window' | 'middle' | 'aisle';
+        mealPreference?: string;
+        newsletterOptIn?: boolean;
+      };
+    }
+  ): Promise<Partial<IUser>> {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      throw new UnauthorizedError('User not found');
+    }
+
+    if (updates.firstName !== undefined) user.firstName = updates.firstName;
+    if (updates.lastName !== undefined) user.lastName = updates.lastName;
+    if (updates.phone !== undefined) user.phone = updates.phone;
+    if (updates.passportNumber !== undefined) user.passportNumber = updates.passportNumber;
+    if (updates.nationality !== undefined) user.nationality = updates.nationality;
+    if (updates.dateOfBirth !== undefined && updates.dateOfBirth !== '') {
+      user.dateOfBirth = new Date(updates.dateOfBirth);
+    }
+
+    if (updates.preferences) {
+      user.preferences = {
+        ...user.preferences,
+        ...updates.preferences,
+      };
+    }
+
+    await user.save();
+
+    return {
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone,
+      dateOfBirth: user.dateOfBirth,
+      passportNumber: user.passportNumber,
+      nationality: user.nationality,
+      preferences: user.preferences,
+      role: user.role,
+      isVerified: user.isVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+  }
+
   async register(userData: {
     firstName: string;
     lastName: string;

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { authService } from '../services/auth.service';
 import { catchAsync } from '../utils/catchAsync';
-import { registerSchema, loginSchema, refreshTokenSchema } from '../validators';
+import { registerSchema, loginSchema, refreshTokenSchema, updateUserSchema } from '../validators';
 import { ValidationError } from '../utils/errors';
 
 export const register = catchAsync(async (req: Request, res: Response) => {
@@ -83,6 +83,30 @@ export const me = catchAsync(async (req: Request, res: Response) => {
     success: true,
     statusCode: 200,
     message: 'User profile retrieved successfully',
+    data: user,
+  });
+});
+
+export const updateMe = catchAsync(async (req: Request, res: Response) => {
+  if (!req.userId) {
+    throw new ValidationError('User not authenticated');
+  }
+
+  const validatedData = updateUserSchema.safeParse(req.body);
+  if (!validatedData.success) {
+    const errors = validatedData.error.errors.map((e) => ({
+      field: e.path.join('.'),
+      message: e.message,
+    }));
+    throw new ValidationError('Validation failed', errors);
+  }
+
+  const user = await authService.updateCurrentUser(req.userId, validatedData.data);
+
+  res.status(200).json({
+    success: true,
+    statusCode: 200,
+    message: 'Profile updated successfully',
     data: user,
   });
 });

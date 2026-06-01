@@ -23,7 +23,7 @@ export const updateUserSchema = z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   phone: z.string().optional(),
-  dateOfBirth: z.string().datetime().optional(),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format').optional(),
   passportNumber: z.string().optional(),
   nationality: z.string().optional(),
   preferences: z
