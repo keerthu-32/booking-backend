@@ -36,11 +36,28 @@ export class FlightService {
     const query: any = {};
     
     if (origin) {
-      query['origin.iataCode'] = origin.toUpperCase();
+      const originValue = origin.trim();
+      query.$or = [
+        { 'origin.iataCode': originValue.toUpperCase() },
+        { 'origin.city': { $regex: `^${originValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' } },
+      ];
     }
     
     if (destination) {
-      query['destination.iataCode'] = destination.toUpperCase();
+      const destinationValue = destination.trim();
+      const destinationMatch = {
+        $or: [
+          { 'destination.iataCode': destinationValue.toUpperCase() },
+          { 'destination.city': { $regex: `^${destinationValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' } },
+        ],
+      };
+
+      if (query.$or) {
+        query.$and = [{ $or: query.$or }, destinationMatch];
+        delete query.$or;
+      } else {
+        query.$or = destinationMatch.$or;
+      }
     }
     
     if (departureDate) {

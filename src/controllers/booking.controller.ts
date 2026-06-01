@@ -108,7 +108,7 @@ export const getAllBookings = catchAsync(async (req: Request, res: Response) => 
 });
 
 export const getAnalytics = catchAsync(async (req: Request, res: Response) => {
-  const { Booking } = require('../models');
+  const { Booking, User } = require('../models');
 
   const [total, confirmed, cancelled, pending] = await Promise.all([
     Booking.countDocuments(),
@@ -117,12 +117,50 @@ export const getAnalytics = catchAsync(async (req: Request, res: Response) => {
     Booking.countDocuments({ status: 'pending' }),
   ]);
 
+  const totalUsers = await User.countDocuments();
+
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const activeUsersAgg = await Booking.aggregate([
+    { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+    { $group: { _id: '$userId' } },
+    { $count: 'count' },
+  ]);
+  const activeUsers = activeUsersAgg[0]?.count || 0;
+
   // Total revenue from confirmed bookings
   const revenueAgg = await Booking.aggregate([
     { $match: { status: 'confirmed' } },
     { $group: { _id: null, total: { $sum: '$fareBreakdown.totalAmount' } } },
   ]);
   const totalRevenue = revenueAgg[0]?.total || 0;
+
+  const salesByMonth = (await Booking.aggregate([
+    {
+      $group: {
+        _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
+        bookings: { $sum: 1 },
+        revenue: { $sum: '$fareBreakdown.totalAmount' },
+      },
+    },
+    { $sort: { '_id.year': -1, '_id.month': -1 } },
+    {
+      $project: {
+        _id: 0,
+        month: {
+          $concat: [
+            { $arrayElemAt: [['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], '$_id.month'] },
+            ' ',
+            { $toString: '$_id.year' },
+          ],
+        },
+        bookings: 1,
+        revenue: 1,
+      },
+    },
+    { $limit: 6 },
+  ])).reverse();
 
   // Top routes
   const topRoutes = await Booking.aggregate([
@@ -143,6 +181,39 @@ export const getAnalytics = catchAsync(async (req: Request, res: Response) => {
         route: { $concat: ['$_id.origin', ' → ', '$_id.destination'] },
         count: 1,
         revenue: 1,
+      },
+    },
+  ]);
+
+  const topUsers = await Booking.aggregate([
+    {
+      $group: {
+        _id: '$userId',
+        bookings: { $sum: 1 },
+        revenue: { $sum: '$fareBreakdown.totalAmount' },
+        lastBookingAt: { $max: '$createdAt' },
+      },
+    },
+    { $sort: { bookings: -1, revenue: -1 } },
+    { $limit: 5 },
+    {
+      $lookup: {
+        from: 'users',
+        localField: '_id',
+        foreignField: '_id',
+        as: 'user',
+      },
+    },
+    { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+    {
+      $project: {
+        _id: 0,
+        userId: { $toString: '$_id' },
+        name: { $concat: ['$user.firstName', ' ', '$user.lastName'] },
+        email: '$user.email',
+        bookings: 1,
+        revenue: 1,
+        lastBookingAt: 1,
       },
     },
   ]);
@@ -200,11 +271,15 @@ export const getAnalytics = catchAsync(async (req: Request, res: Response) => {
       confirmedBookings: confirmed,
       cancelledBookings: cancelled,
       pendingBookings: pending,
+      totalUsers,
+      activeUsers,
       totalRevenue,
       averageBookingValue: confirmed > 0 ? totalRevenue / confirmed : 0,
       cancellationRate: total > 0 ? (cancelled / total) * 100 : 0,
       topRoutes,
+      topUsers,
       bookingsByMonth: bookingsByMonth.reverse(),
+      salesByMonth,
       recentBookings: formattedRecent,
     },
   });

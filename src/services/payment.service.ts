@@ -27,11 +27,15 @@ export class PaymentService {
     userId: string,
     data: InitiatePaymentData
   ): Promise<{ orderId: string; paymentIntentId: string; amount: number; currency: string }> {
-    const booking = await Booking.findById(data.bookingId).populate('userId');
+    const booking = await Booking.findById(data.bookingId);
     if (!booking) throw new NotFoundError('Booking not found');
 
     if (booking.userId.toString() !== userId) {
       throw new ValidationError('Booking does not belong to this user');
+    }
+
+    if (data.provider !== 'razorpay') {
+      throw new ValidationError('Stripe payments are not configured for this deployment');
     }
 
     if (booking.status !== 'pending') {

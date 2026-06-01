@@ -1,14 +1,22 @@
 import Stripe from 'stripe';
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
+let stripeClient: Stripe | null = null;
 
-if (!stripeSecretKey) {
-  console.warn('⚠ STRIPE_SECRET_KEY not configured');
-}
+const getStripeClient = (): Stripe => {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
-export const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2023-10-16',
-});
+  if (!stripeSecretKey) {
+    throw new Error('STRIPE_SECRET_KEY not configured');
+  }
+
+  if (!stripeClient) {
+    stripeClient = new Stripe(stripeSecretKey, {
+      apiVersion: '2023-10-16',
+    });
+  }
+
+  return stripeClient;
+};
 
 export interface StripePaymentIntentParams {
   amount: number; // in cents
@@ -21,7 +29,7 @@ export interface StripePaymentIntentParams {
 export const createPaymentIntent = async (
   params: StripePaymentIntentParams
 ): Promise<any> => {
-  const intent = await stripe.paymentIntents.create({
+  const intent = await getStripeClient().paymentIntents.create({
     amount: params.amount,
     currency: params.currency.toLowerCase(),
     receipt_email: params.customerEmail,
@@ -35,7 +43,7 @@ export const createPaymentIntent = async (
 export const confirmPaymentIntent = async (
   paymentIntentId: string
 ): Promise<any> => {
-  const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  const intent = await getStripeClient().paymentIntents.retrieve(paymentIntentId);
   return intent;
 };
 
@@ -44,7 +52,7 @@ export const refundPayment = async (
   amount?: number
 ): Promise<any> => {
   // Get the charge ID from the payment intent
-  const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  const intent = await getStripeClient().paymentIntents.retrieve(paymentIntentId);
   const intentAny: any = intent as any;
   if (!intentAny.charges || !intentAny.charges.data || !intentAny.charges.data[0]) {
     throw new Error('No charge found for this payment intent');
@@ -52,7 +60,7 @@ export const refundPayment = async (
 
   const chargeId = intentAny.charges.data[0].id;
 
-  const refund = await stripe.refunds.create({
+  const refund = await getStripeClient().refunds.create({
     charge: chargeId,
     amount: amount ? Math.round(amount * 100) : undefined,
   });
@@ -66,7 +74,7 @@ export const verifyWebhookSignature = (
 ): any | null => {
   try {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
-    const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    const event = getStripeClient().webhooks.constructEvent(body, signature, webhookSecret);
     return event;
   } catch (error) {
     console.error('Webhook signature verification failed:', error);
