@@ -284,3 +284,57 @@ export const getAnalytics = catchAsync(async (req: Request, res: Response) => {
     },
   });
 });
+
+export const getHomepageInsights = catchAsync(async (_req: Request, res: Response) => {
+  const { Booking } = require('../models');
+
+  const [total, confirmed, cancelled] = await Promise.all([
+    Booking.countDocuments(),
+    Booking.countDocuments({ status: 'confirmed' }),
+    Booking.countDocuments({ status: 'cancelled' }),
+  ]);
+
+  const totalRevenueAgg = await Booking.aggregate([
+    { $match: { status: 'confirmed' } },
+    { $group: { _id: null, total: { $sum: '$fareBreakdown.totalAmount' } } },
+  ]);
+  const totalRevenue = totalRevenueAgg[0]?.total || 0;
+
+  const topRoutes = await Booking.aggregate([
+    { $lookup: { from: 'flights', localField: 'flightId', foreignField: '_id', as: 'flight' } },
+    { $unwind: '$flight' },
+    {
+      $group: {
+        _id: { origin: '$flight.origin.iataCode', destination: '$flight.destination.iataCode' },
+        count: { $sum: 1 },
+        revenue: { $sum: '$fareBreakdown.totalAmount' },
+      },
+    },
+    { $sort: { count: -1, revenue: -1 } },
+    { $limit: 5 },
+    {
+      $project: {
+        _id: 0,
+        origin: '$_id.origin',
+        destination: '$_id.destination',
+        route: { $concat: ['$_id.origin', ' → ', '$_id.destination'] },
+        count: 1,
+        revenue: 1,
+      },
+    },
+  ]);
+
+  res.status(200).json({
+    success: true,
+    statusCode: 200,
+    message: 'Homepage insights retrieved successfully',
+    data: {
+      totalBookings: total,
+      totalRevenue,
+      averageBookingValue: confirmed > 0 ? totalRevenue / confirmed : 0,
+      cancellationRate: total > 0 ? (cancelled / total) * 100 : 0,
+      topRoutes,
+      featuredRoute: topRoutes[0] || null,
+    },
+  });
+});
