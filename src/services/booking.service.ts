@@ -1,6 +1,7 @@
 import { Booking, IBooking } from '../models/Booking';
 import { Flight } from '../models/Flight';
 import { Payment } from '../models/Payment';
+import { Notification } from '../models/Notification';
 import { NotFoundError, ValidationError } from '../utils/errors';
 import { generateBookingReference, calculateRefundAmount } from '../utils/helpers';
 
@@ -34,6 +35,10 @@ export class BookingService {
       throw new NotFoundError('Cabin class not available on this flight');
     }
 
+    if (cabinClass.availableSeats < data.passengers.length) {
+      throw new ValidationError('Not enough seats available in selected cabin class');
+    }
+
     // Calculate fare
     const baseFare = cabinClass.baseFare * data.passengers.length;
     const taxes = baseFare * 0.125; // 12.5% tax
@@ -63,15 +68,25 @@ export class BookingService {
       },
     });
 
-    await booking.save();
-
     // Update flight seat availability
-    if (cabinClass.availableSeats >= data.passengers.length) {
-      cabinClass.availableSeats -= data.passengers.length;
-      await flight.save();
-    } else {
-      throw new ValidationError('Not enough seats available in selected cabin class');
-    }
+    cabinClass.availableSeats -= data.passengers.length;
+    await booking.save();
+    await flight.save();
+
+    await Notification.create({
+      userId,
+      type: 'booking_confirm',
+      channel: 'email',
+      status: 'pending',
+      payload: {
+        bookingReference: booking.bookingReference,
+        flightNumber: flight.flightNumber,
+        airline: flight.airline,
+        cabinClass: booking.cabinClass,
+        totalAmount: booking.fareBreakdown.totalAmount,
+        paymentStatus: 'pending',
+      },
+    });
 
     return booking;
   }
@@ -117,6 +132,18 @@ export class BookingService {
     // Update booking status
     booking.status = 'cancelled';
     await booking.save();
+
+    await Notification.create({
+      userId: booking.userId,
+      type: 'booking_cancel',
+      channel: 'email',
+      status: 'pending',
+      payload: {
+        bookingReference: booking.bookingReference,
+        refundAmount,
+        flightId: flight._id,
+      },
+    });
 
     // Restore seat availability
     const cabinClass = flight.cabinClasses.find((c) => c.type === booking.cabinClass);

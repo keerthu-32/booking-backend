@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import { Flight } from '../models/Flight';
+import { User } from '../models/User';
 
 const sampleFlights = [
   {
@@ -448,6 +449,30 @@ async function seedFlights() {
     console.log('Connecting to MongoDB...');
     await mongoose.connect(mongoUri);
     console.log('✓ Connected to MongoDB');
+
+    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@flightbook.com').trim().toLowerCase();
+    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@12345';
+    const existingAdmin = await User.findOne({ email: adminEmail });
+
+    if (!existingAdmin) {
+      await User.create({
+        firstName: 'FlightBook',
+        lastName: 'Admin',
+        email: adminEmail,
+        passwordHash: adminPassword,
+        phone: '+10000000000',
+        role: 'admin',
+        isVerified: true,
+      });
+      console.log(`✓ Created admin user: ${adminEmail}`);
+    } else if (existingAdmin.role !== 'admin') {
+      existingAdmin.role = 'admin';
+      existingAdmin.passwordHash = adminPassword;
+      await existingAdmin.save();
+      console.log(`✓ Promoted existing user to admin: ${adminEmail}`);
+    } else {
+      console.log(`✓ Admin user already exists: ${adminEmail}`);
+    }
 
     // Clear existing flights
     console.log('Clearing existing flights...');

@@ -91,8 +91,10 @@ export class AuthService {
     password: string;
     phone: string;
   }): Promise<{ user: Partial<IUser>; accessToken: string; refreshToken: string }> {
+    const email = userData.email.trim().toLowerCase();
+
     // Check if user exists
-    const existingUser = await User.findOne({ email: userData.email });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       throw new ConflictError('Email already registered');
     }
@@ -101,7 +103,7 @@ export class AuthService {
     const user = new User({
       firstName: userData.firstName,
       lastName: userData.lastName,
-      email: userData.email,
+      email,
       passwordHash: userData.password,
       phone: userData.phone,
       isVerified: true, // For simplicity, auto-verify in demo
@@ -144,8 +146,10 @@ export class AuthService {
     accessToken: string;
     refreshToken: string;
   }> {
+    const normalizedEmail = email.trim().toLowerCase();
+
     // Find user
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       throw new UnauthorizedError('Invalid email or password');
     }

@@ -9,6 +9,7 @@
     "postinstall": "npm run build",
     "start": "node dist/app.js",
     "seed": "ts-node src/scripts/seedFlights.ts",
+    "seed:admin": "ts-node src/scripts/ensureAdmin.ts",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "jest",

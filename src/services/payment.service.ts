@@ -1,5 +1,6 @@
 import { Payment, IPayment } from '../models/Payment';
 import { Booking } from '../models/Booking';
+import { Notification } from '../models/Notification';
 import { NotFoundError, ValidationError } from '../utils/errors';
 import Razorpay from 'razorpay';
 
@@ -98,6 +99,22 @@ export class PaymentService {
       { status: 'confirmed' },
       { new: true }
     );
+
+    if (booking) {
+      await Notification.create({
+        userId: payment.userId,
+        type: 'payment',
+        channel: 'email',
+        status: 'pending',
+        payload: {
+          bookingReference: booking.bookingReference,
+          paymentId: payment._id,
+          amount: payment.amount,
+          currency: payment.currency,
+          receiptStatus: 'success',
+        },
+      });
+    }
 
     return payment;
   }

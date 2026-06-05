@@ -12,6 +12,7 @@ import authRoutes from './routes/auth.routes';
 import flightRoutes from './routes/flight.routes';
 import bookingRoutes from './routes/booking.routes';
 import paymentRoutes from './routes/payment.routes';
+import adminRoutes from './routes/admin.routes';
 
 const app: Express = express();
 
@@ -77,6 +78,7 @@ app.use(`${basePath}/auth`, authRoutes);
 app.use(`${basePath}/flights`, flightRoutes);
 app.use(`${basePath}/bookings`, bookingRoutes);
 app.use(`${basePath}/payments`, paymentRoutes);
+app.use(`${basePath}/admin`, adminRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
