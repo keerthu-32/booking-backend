@@ -43,7 +43,7 @@ export class PaymentService {
       throw new ValidationError('Only pending bookings can be paid');
     }
 
-    // Create Razorpay order (amount in paise = USD cents equivalent for testing)
+    // Create Razorpay order. Razorpay expects INR amounts in paise.
     const order = await getRazorpay().orders.create({
       amount: Math.round(booking.fareBreakdown.totalAmount * 100),
       currency: 'INR', // Razorpay test supports INR
@@ -79,10 +79,14 @@ export class PaymentService {
     };
   }
 
-  async confirmPayment(paymentIntentId: string): Promise<IPayment> {
-    // Find payment by provider transaction ID
+  async confirmPayment(paymentIntentId: string, orderId?: string): Promise<IPayment> {
+    // Find payment by Razorpay order ID first, then fall back to payment ID
     const payment = await Payment.findOne({
-      providerTransactionId: paymentIntentId,
+      $or: [
+        { providerTransactionId: orderId || paymentIntentId },
+        { 'metadata.orderId': orderId || paymentIntentId },
+        { 'metadata.paymentId': paymentIntentId },
+      ],
     });
 
     if (!payment) {
@@ -91,6 +95,12 @@ export class PaymentService {
 
     // Update payment status to success
     payment.status = 'success';
+    const existingMetadata = (payment.metadata as Record<string, unknown>) || {};
+    payment.metadata = {
+      ...existingMetadata,
+      paymentId: paymentIntentId,
+      orderId: orderId || existingMetadata.orderId,
+    };
     await payment.save();
 
     // Update booking status to confirmed

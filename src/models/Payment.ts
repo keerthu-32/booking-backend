@@ -20,7 +20,7 @@ const paymentSchema = new Schema<IPayment>(
     bookingId: { type: Schema.Types.ObjectId, ref: 'Booking', required: true, index: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     amount: { type: Number, required: true },
-    currency: { type: String, default: 'USD' },
+    currency: { type: String, default: 'INR' },
     method: {
       type: String,
       enum: ['card', 'wallet', 'bank_transfer'],

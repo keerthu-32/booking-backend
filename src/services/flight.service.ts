@@ -65,6 +65,8 @@ export class FlightService {
         $gte: new Date(departureDate),
         $lt: new Date(new Date(departureDate).getTime() + 24 * 60 * 60 * 1000),
       };
+    } else {
+      query.departureTime = { $gte: new Date() };
     }
 
     if (cabinClass) {

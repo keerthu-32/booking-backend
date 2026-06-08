@@ -81,4 +81,5 @@ export const initiatePaymentSchema = z.object({
 
 export const confirmPaymentSchema = z.object({
   paymentIntentId: z.string().min(1, 'Payment intent ID is required'),
+  orderId: z.string().optional(),
 });

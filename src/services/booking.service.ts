@@ -29,6 +29,10 @@ export class BookingService {
       throw new NotFoundError('Flight not found');
     }
 
+    if (flight.departureTime.getTime() <= Date.now()) {
+      throw new ValidationError('This flight has already departed and cannot be booked');
+    }
+
     // Get cabin class details
     const cabinClass = flight.cabinClasses.find((c) => c.type === data.cabinClass);
     if (!cabinClass) {
@@ -64,7 +68,7 @@ export class BookingService {
         taxes,
         fees,
         totalAmount,
-        currency: 'USD',
+        currency: 'INR',
       },
     });
 

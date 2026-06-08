@@ -65,7 +65,7 @@ const flightSchema = new Schema<IFlight>(
         totalSeats: { type: Number, required: true },
         availableSeats: { type: Number, required: true },
         baseFare: { type: Number, required: true },
-        currency: { type: String, default: 'USD' },
+        currency: { type: String, default: 'INR' },
       },
     ],
     amenities: [{ type: String }],

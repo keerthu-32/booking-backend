@@ -43,7 +43,10 @@ export const confirmPayment = catchAsync(async (req: Request, res: Response) => 
     throw new ValidationError('Validation failed', errors);
   }
 
-  const payment = await paymentService.confirmPayment(validatedData.data.paymentIntentId);
+  const payment = await paymentService.confirmPayment(
+    validatedData.data.paymentIntentId,
+    validatedData.data.orderId
+  );
 
   res.status(200).json({
     success: true,

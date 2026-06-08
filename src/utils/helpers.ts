@@ -25,7 +25,7 @@ export const generateOTP = (): string => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-export const formatCurrency = (amount: number, currency: string = 'USD'): string => {
+export const formatCurrency = (amount: number, currency: string = 'INR'): string => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,

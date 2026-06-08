@@ -31,21 +31,21 @@ const sampleFlights = [
         totalSeats: 200,
         availableSeats: 150,
         baseFare: 299,
-        currency: 'USD'
+        currency: 'INR'
       },
       {
         type: 'business',
         totalSeats: 40,
         availableSeats: 25,
         baseFare: 899,
-        currency: 'USD'
+        currency: 'INR'
       },
       {
         type: 'first',
         totalSeats: 12,
         availableSeats: 8,
         baseFare: 1499,
-        currency: 'USD'
+        currency: 'INR'
       }
     ],
     amenities: ['WiFi', 'In-flight Entertainment', 'Meals', 'Power Outlets']
@@ -77,14 +77,14 @@ const sampleFlights = [
         totalSeats: 150,
         availableSeats: 100,
         baseFare: 189,
-        currency: 'USD'
+        currency: 'INR'
       },
       {
         type: 'business',
         totalSeats: 20,
         availableSeats: 12,
         baseFare: 549,
-        currency: 'USD'
+        currency: 'INR'
       }
     ],
     amenities: ['WiFi', 'Snacks', 'Beverages']
@@ -116,21 +116,21 @@ const sampleFlights = [
         totalSeats: 180,
         availableSeats: 120,
         baseFare: 349,
-        currency: 'USD'
+        currency: 'INR'
       },
       {
         type: 'business',
         totalSeats: 48,
         availableSeats: 30,
         baseFare: 999,
-        currency: 'USD'
+        currency: 'INR'
       },
       {
         type: 'first',
         totalSeats: 8,
         availableSeats: 5,
         baseFare: 1799,
-        currency: 'USD'
+        currency: 'INR'
       }
     ],
     amenities: ['WiFi', 'In-flight Entertainment', 'Premium Meals', 'Lie-flat Seats', 'Power Outlets']
@@ -162,21 +162,21 @@ const sampleFlights = [
         totalSeats: 300,
         availableSeats: 200,
         baseFare: 599,
-        currency: 'USD'
+        currency: 'INR'
       },
       {
         type: 'business',
         totalSeats: 80,
         availableSeats: 50,
         baseFare: 2499,
-        currency: 'USD'
+        currency: 'INR'
       },
       {
         type: 'first',
         totalSeats: 14,
         availableSeats: 10,
         baseFare: 4999,
-        currency: 'USD'
+        currency: 'INR'
       }
     ],
     amenities: ['WiFi', 'In-flight Entertainment', 'Gourmet Meals', 'Bar', 'Shower Spa', 'Power Outlets']
@@ -208,21 +208,21 @@ const sampleFlights = [
         totalSeats: 350,
         availableSeats: 250,
         baseFare: 799,
-        currency: 'USD'
+        currency: 'INR'
       },
       {
         type: 'business',
         totalSeats: 76,
         availableSeats: 45,
         baseFare: 3499,
-        currency: 'USD'
+        currency: 'INR'
       },
       {
         type: 'first',
         totalSeats: 14,
         availableSeats: 8,
         baseFare: 7999,
-        currency: 'USD'
+        currency: 'INR'
       }
     ],
     amenities: ['WiFi', 'In-flight Entertainment', 'Gourmet Meals', 'Onboard Lounge', 'Shower Spa', 'Private Suites']
@@ -254,7 +254,7 @@ const sampleFlights = [
         totalSeats: 175,
         availableSeats: 130,
         baseFare: 129,
-        currency: 'USD'
+        currency: 'INR'
       }
     ],
     amenities: ['WiFi', 'Snacks', 'Free Checked Bags']
@@ -286,21 +286,21 @@ const sampleFlights = [
         totalSeats: 220,
         availableSeats: 160,
         baseFare: 649,
-        currency: 'USD'
+        currency: 'INR'
       },
       {
         type: 'business',
         totalSeats: 58,
         availableSeats: 35,
         baseFare: 2799,
-        currency: 'USD'
+        currency: 'INR'
       },
       {
         type: 'first',
         totalSeats: 8,
         availableSeats: 4,
         baseFare: 5499,
-        currency: 'USD'
+        currency: 'INR'
       }
     ],
     amenities: ['WiFi', 'In-flight Entertainment', 'French Cuisine', 'Champagne', 'Power Outlets']
@@ -332,21 +332,21 @@ const sampleFlights = [
         totalSeats: 340,
         availableSeats: 220,
         baseFare: 899,
-        currency: 'USD'
+        currency: 'INR'
       },
       {
         type: 'business',
         totalSeats: 70,
         availableSeats: 40,
         baseFare: 3999,
-        currency: 'USD'
+        currency: 'INR'
       },
       {
         type: 'first',
         totalSeats: 14,
         availableSeats: 9,
         baseFare: 8999,
-        currency: 'USD'
+        currency: 'INR'
       }
     ],
     amenities: ['WiFi', 'In-flight Entertainment', 'Premium Meals', 'Onboard Lounge', 'Lie-flat Beds']
@@ -378,21 +378,21 @@ const sampleFlights = [
         totalSeats: 250,
         availableSeats: 180,
         baseFare: 699,
-        currency: 'USD'
+        currency: 'INR'
       },
       {
         type: 'business',
         totalSeats: 80,
         availableSeats: 55,
         baseFare: 2999,
-        currency: 'USD'
+        currency: 'INR'
       },
       {
         type: 'first',
         totalSeats: 8,
         availableSeats: 6,
         baseFare: 6499,
-        currency: 'USD'
+        currency: 'INR'
       }
     ],
     amenities: ['WiFi', 'In-flight Entertainment', 'Premium Meals', 'Bar', 'Power Outlets']
@@ -424,14 +424,14 @@ const sampleFlights = [
         totalSeats: 94,
         availableSeats: 60,
         baseFare: 1299,
-        currency: 'USD'
+        currency: 'INR'
       },
       {
         type: 'business',
         totalSeats: 67,
         availableSeats: 40,
         baseFare: 5999,
-        currency: 'USD'
+        currency: 'INR'
       }
     ],
     amenities: ['WiFi', 'In-flight Entertainment', 'Gourmet Meals', 'Lie-flat Beds', 'Premium Amenity Kits']
@@ -490,7 +490,7 @@ async function seedFlights() {
       console.log(`${index + 1}. ${flight.flightNumber} - ${flight.airline}`);
       console.log(`   ${flight.origin.city} (${flight.origin.iataCode}) → ${flight.destination.city} (${flight.destination.iataCode})`);
       console.log(`   Departure: ${flight.departureTime.toISOString()}`);
-      console.log(`   Economy: $${flight.cabinClasses.find(c => c.type === 'economy')?.baseFare}`);
+      console.log(`   Economy: INR ${flight.cabinClasses.find(c => c.type === 'economy')?.baseFare}`);
       console.log('');
     });
 
@@ -504,3 +504,4 @@ async function seedFlights() {
 
 // Run the seed function
 seedFlights();
+

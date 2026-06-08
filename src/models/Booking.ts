@@ -60,7 +60,7 @@ const bookingSchema = new Schema<IBooking>(
       taxes: { type: Number, required: true },
       fees: { type: Number, required: true },
       totalAmount: { type: Number, required: true },
-      currency: { type: String, default: 'USD' },
+      currency: { type: String, default: 'INR' },
     },
     paymentId: { type: Schema.Types.ObjectId, ref: 'Payment' },
     checkInStatus: { type: Boolean, default: false },
