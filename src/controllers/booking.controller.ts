@@ -286,7 +286,7 @@ export const getAnalytics = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getHomepageInsights = catchAsync(async (_req: Request, res: Response) => {
-  const { Booking } = require('../models');
+  const { Booking, Flight } = require('../models');
 
   const [total, confirmed, cancelled] = await Promise.all([
     Booking.countDocuments(),
@@ -311,7 +311,7 @@ export const getHomepageInsights = catchAsync(async (_req: Request, res: Respons
       },
     },
     { $sort: { count: -1, revenue: -1 } },
-    { $limit: 5 },
+    { $limit: 10 }, // Fetch extra so we still have 5 after filtering dead routes
     {
       $project: {
         _id: 0,
@@ -324,6 +324,22 @@ export const getHomepageInsights = catchAsync(async (_req: Request, res: Respons
     },
   ]);
 
+  // Filter out routes that have no upcoming scheduled flights, so we never
+  // show a "Popular Route" that leads to zero search results.
+  const now = new Date();
+  const routeChecks = await Promise.all(
+    topRoutes.map(async (route: { origin: string; destination: string; route: string; count: number; revenue: number }) => {
+      const activeFlight = await Flight.findOne({
+        'origin.iataCode': route.origin,
+        'destination.iataCode': route.destination,
+        departureTime: { $gte: now },
+        status: { $nin: ['cancelled'] },
+      });
+      return activeFlight ? route : null;
+    })
+  );
+  const activeTopRoutes = routeChecks.filter(Boolean).slice(0, 5);
+
   res.status(200).json({
     success: true,
     statusCode: 200,
@@ -333,8 +349,8 @@ export const getHomepageInsights = catchAsync(async (_req: Request, res: Respons
       totalRevenue,
       averageBookingValue: confirmed > 0 ? totalRevenue / confirmed : 0,
       cancellationRate: total > 0 ? (cancelled / total) * 100 : 0,
-      topRoutes,
-      featuredRoute: topRoutes[0] || null,
+      topRoutes: activeTopRoutes,
+      featuredRoute: activeTopRoutes[0] || null,
     },
   });
 });

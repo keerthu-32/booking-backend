@@ -4,6 +4,7 @@ import { Payment } from '../models/Payment';
 import { Notification } from '../models/Notification';
 import { NotFoundError, ValidationError } from '../utils/errors';
 import { generateBookingReference, calculateRefundAmount } from '../utils/helpers';
+import mongoose from 'mongoose';
 
 export interface PassengerData {
   firstName: string;
@@ -50,26 +51,6 @@ export class BookingService {
       throw new ValidationError('Duplicate seat numbers detected. Each passenger must have a unique seat.');
     }
 
-    // Check for already-booked seats in existing bookings for this flight
-    const existingBookings = await Booking.find({
-      flightId: data.flightId,
-      status: { $in: ['confirmed', 'pending'] },
-    });
-
-    const occupiedSeats = new Set<string>();
-    existingBookings.forEach((booking) => {
-      booking.passengers.forEach((passenger) => {
-        occupiedSeats.add(passenger.seatNumber);
-      });
-    });
-
-    const conflictingSeats = seatNumbers.filter((seat) => occupiedSeats.has(seat));
-    if (conflictingSeats.length > 0) {
-      throw new ValidationError(
-        `The following seats are already booked: ${conflictingSeats.join(', ')}. Please select different seats.`
-      );
-    }
-
     // Calculate fare
     const baseFare = cabinClass.baseFare * data.passengers.length;
     const taxes = baseFare * 0.125; // 12.5% tax
@@ -82,27 +63,68 @@ export class BookingService {
       dateOfBirth: p.dateOfBirth instanceof Date ? p.dateOfBirth : new Date(p.dateOfBirth),
     }));
 
-    // Create booking
-    const booking = new Booking({
-      bookingReference: generateBookingReference(),
-      userId,
-      flightId: data.flightId,
-      passengers: normalizedPassengers,
-      cabinClass: data.cabinClass,
-      status: 'pending',
-      fareBreakdown: {
-        baseFare,
-        taxes,
-        fees,
-        totalAmount,
-        currency: 'INR',
-      },
-    });
+    // Use a MongoDB session/transaction to atomically check seat availability
+    // and create the booking, preventing race conditions where two simultaneous
+    // requests for the same seat both pass the conflict check before either writes.
+    const session = await mongoose.startSession();
 
-    // Update flight seat availability
-    cabinClass.availableSeats -= data.passengers.length;
-    await booking.save();
-    await flight.save();
+    let booking: IBooking;
+    try {
+      await session.withTransaction(async () => {
+        // Re-check for already-booked seats inside the transaction (atomic read)
+        const existingBookings = await Booking.find({
+          flightId: data.flightId,
+          status: { $in: ['confirmed', 'pending'] },
+        }).session(session);
+
+        const occupiedSeats = new Set<string>();
+        existingBookings.forEach((b) => {
+          b.passengers.forEach((passenger) => {
+            occupiedSeats.add(passenger.seatNumber);
+          });
+        });
+
+        const conflictingSeats = seatNumbers.filter((seat) => occupiedSeats.has(seat));
+        if (conflictingSeats.length > 0) {
+          throw new ValidationError(
+            `The following seats are already booked: ${conflictingSeats.join(', ')}. Please select different seats.`
+          );
+        }
+
+        // Create booking inside the transaction
+        const newBooking = new Booking({
+          bookingReference: generateBookingReference(),
+          userId,
+          flightId: data.flightId,
+          passengers: normalizedPassengers,
+          cabinClass: data.cabinClass,
+          status: 'pending',
+          fareBreakdown: {
+            baseFare,
+            taxes,
+            fees,
+            totalAmount,
+            currency: 'INR',
+          },
+        });
+
+        await newBooking.save({ session });
+
+        // Update flight seat availability inside the transaction
+        const flightToUpdate = await Flight.findById(data.flightId).session(session);
+        if (flightToUpdate) {
+          const cabinToUpdate = flightToUpdate.cabinClasses.find((c) => c.type === data.cabinClass);
+          if (cabinToUpdate) {
+            cabinToUpdate.availableSeats -= data.passengers.length;
+            await flightToUpdate.save({ session });
+          }
+        }
+
+        booking = newBooking;
+      });
+    } finally {
+      session.endSession();
+    }
 
     await Notification.create({
       userId,
@@ -110,16 +132,16 @@ export class BookingService {
       channel: 'email',
       status: 'pending',
       payload: {
-        bookingReference: booking.bookingReference,
+        bookingReference: booking!.bookingReference,
         flightNumber: flight.flightNumber,
         airline: flight.airline,
-        cabinClass: booking.cabinClass,
-        totalAmount: booking.fareBreakdown.totalAmount,
+        cabinClass: booking!.cabinClass,
+        totalAmount: booking!.fareBreakdown.totalAmount,
         paymentStatus: 'pending',
       },
     });
 
-    return booking;
+    return booking!;
   }
 
   async getBooking(bookingId: string, userId?: string): Promise<IBooking> {
