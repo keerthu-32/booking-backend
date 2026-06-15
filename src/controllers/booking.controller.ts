@@ -338,3 +338,20 @@ export const getHomepageInsights = catchAsync(async (_req: Request, res: Respons
     },
   });
 });
+
+export const getOccupiedSeats = catchAsync(async (req: Request, res: Response) => {
+  const { flightId } = req.params;
+
+  if (!flightId) {
+    throw new ValidationError('Flight ID is required');
+  }
+
+  const occupiedSeats = await bookingService.getOccupiedSeats(flightId);
+
+  res.status(200).json({
+    success: true,
+    statusCode: 200,
+    message: 'Occupied seats retrieved successfully',
+    data: { occupiedSeats },
+  });
+});

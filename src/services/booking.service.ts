@@ -43,6 +43,33 @@ export class BookingService {
       throw new ValidationError('Not enough seats available in selected cabin class');
     }
 
+    // Validate seat selection - check for duplicates within the booking
+    const seatNumbers = data.passengers.map((p) => p.seatNumber);
+    const uniqueSeats = new Set(seatNumbers);
+    if (uniqueSeats.size !== seatNumbers.length) {
+      throw new ValidationError('Duplicate seat numbers detected. Each passenger must have a unique seat.');
+    }
+
+    // Check for already-booked seats in existing bookings for this flight
+    const existingBookings = await Booking.find({
+      flightId: data.flightId,
+      status: { $in: ['confirmed', 'pending'] },
+    });
+
+    const occupiedSeats = new Set<string>();
+    existingBookings.forEach((booking) => {
+      booking.passengers.forEach((passenger) => {
+        occupiedSeats.add(passenger.seatNumber);
+      });
+    });
+
+    const conflictingSeats = seatNumbers.filter((seat) => occupiedSeats.has(seat));
+    if (conflictingSeats.length > 0) {
+      throw new ValidationError(
+        `The following seats are already booked: ${conflictingSeats.join(', ')}. Please select different seats.`
+      );
+    }
+
     // Calculate fare
     const baseFare = cabinClass.baseFare * data.passengers.length;
     const taxes = baseFare * 0.125; // 12.5% tax
@@ -183,6 +210,22 @@ export class BookingService {
     }
 
     return booking;
+  }
+
+  async getOccupiedSeats(flightId: string): Promise<string[]> {
+    const existingBookings = await Booking.find({
+      flightId,
+      status: { $in: ['confirmed', 'pending'] },
+    });
+
+    const occupiedSeats = new Set<string>();
+    existingBookings.forEach((booking) => {
+      booking.passengers.forEach((passenger) => {
+        occupiedSeats.add(passenger.seatNumber);
+      });
+    });
+
+    return Array.from(occupiedSeats);
   }
 }
 

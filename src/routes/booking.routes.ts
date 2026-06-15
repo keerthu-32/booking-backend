@@ -7,6 +7,9 @@ const router = Router();
 // Public homepage insights
 router.get('/insights', bookingController.getHomepageInsights);
 
+// Public route for checking occupied seats (needed during booking)
+router.get('/flights/:flightId/occupied-seats', bookingController.getOccupiedSeats);
+
 // Admin routes
 router.get('/admin/all', authenticateToken, authorizeRole('admin'), bookingController.getAllBookings);
 router.get('/admin/analytics', authenticateToken, authorizeRole('admin'), bookingController.getAnalytics);
