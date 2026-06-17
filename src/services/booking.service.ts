@@ -2,9 +2,13 @@ import { Booking, IBooking } from '../models/Booking';
 import { Flight } from '../models/Flight';
 import { Payment } from '../models/Payment';
 import { Notification } from '../models/Notification';
+import { SeatBlock } from '../models/SeatBlock';
 import { NotFoundError, ValidationError } from '../utils/errors';
 import { generateBookingReference, calculateRefundAmount } from '../utils/helpers';
 import mongoose from 'mongoose';
+
+// Seats are held for 8 minutes from booking creation
+const SEAT_HOLD_MINUTES = 8;
 
 export interface PassengerData {
   firstName: string;
@@ -63,15 +67,16 @@ export class BookingService {
       dateOfBirth: p.dateOfBirth instanceof Date ? p.dateOfBirth : new Date(p.dateOfBirth),
     }));
 
-    // Use a MongoDB session/transaction to atomically check seat availability
-    // and create the booking, preventing race conditions where two simultaneous
-    // requests for the same seat both pass the conflict check before either writes.
+    // Use a MongoDB session/transaction to atomically check seat availability,
+    // check active seat blocks, create the booking, and create seat blocks.
+    // This prevents race conditions where two simultaneous requests for the same
+    // seat both pass the conflict check before either writes.
     const session = await mongoose.startSession();
 
     let booking: IBooking;
     try {
       await session.withTransaction(async () => {
-        // Re-check for already-booked seats inside the transaction (atomic read)
+        // 1. Re-check for already-confirmed/pending booked seats inside the transaction
         const existingBookings = await Booking.find({
           flightId: data.flightId,
           status: { $in: ['confirmed', 'pending'] },
@@ -84,14 +89,25 @@ export class BookingService {
           });
         });
 
+        // 2. Also check active seat blocks from OTHER users (blocks for this userId are ok — re-hold)
+        const activeBlocks = await SeatBlock.find({
+          flightId: data.flightId,
+          userId: { $ne: userId }, // exclude the current user's own existing blocks
+          expiresAt: { $gt: new Date() },
+        }).session(session);
+
+        activeBlocks.forEach((block) => {
+          occupiedSeats.add(block.seatNumber);
+        });
+
         const conflictingSeats = seatNumbers.filter((seat) => occupiedSeats.has(seat));
         if (conflictingSeats.length > 0) {
           throw new ValidationError(
-            `The following seats are already booked: ${conflictingSeats.join(', ')}. Please select different seats.`
+            `The following seats are unavailable: ${conflictingSeats.join(', ')}. Please select different seats.`
           );
         }
 
-        // Create booking inside the transaction
+        // 3. Create booking inside the transaction
         const newBooking = new Booking({
           bookingReference: generateBookingReference(),
           userId,
@@ -110,7 +126,24 @@ export class BookingService {
 
         await newBooking.save({ session });
 
-        // Update flight seat availability inside the transaction
+        // 4. Create seat blocks (8-minute TTL hold) inside the transaction.
+        //    Use upsert so if the user somehow already has a block for this seat, refresh it.
+        const holdExpiry = new Date(Date.now() + SEAT_HOLD_MINUTES * 60 * 1000);
+        for (const seatNum of seatNumbers) {
+          await SeatBlock.findOneAndUpdate(
+            { flightId: data.flightId, seatNumber: seatNum },
+            {
+              flightId: data.flightId,
+              seatNumber: seatNum,
+              userId,
+              bookingId: newBooking._id,
+              expiresAt: holdExpiry,
+            },
+            { upsert: true, session }
+          );
+        }
+
+        // 5. Update flight seat availability inside the transaction
         const flightToUpdate = await Flight.findById(data.flightId).session(session);
         if (flightToUpdate) {
           const cabinToUpdate = flightToUpdate.cabinClasses.find((c) => c.type === data.cabinClass);
@@ -182,9 +215,22 @@ export class BookingService {
       flight.departureTime
     );
 
-    // Update booking status
+    // Restore seat availability FIRST (before marking booking cancelled),
+    // so that if flight.save() fails, the booking is not left as cancelled
+    // with no corresponding seat restoration.
+    const cabinClass = flight.cabinClasses.find((c) => c.type === booking.cabinClass);
+    if (cabinClass) {
+      cabinClass.availableSeats += booking.passengers.length;
+      await flight.save();
+    }
+
+    // Now mark the booking as cancelled
     booking.status = 'cancelled';
     await booking.save();
+
+    // Remove any lingering seat blocks for these seats
+    const seatNumbers = booking.passengers.map((p) => p.seatNumber);
+    await SeatBlock.deleteMany({ flightId: booking.flightId, seatNumber: { $in: seatNumbers } });
 
     await Notification.create({
       userId: booking.userId,
@@ -198,21 +244,11 @@ export class BookingService {
       },
     });
 
-    // Restore seat availability
-    const cabinClass = flight.cabinClasses.find((c) => c.type === booking.cabinClass);
-    if (cabinClass) {
-      cabinClass.availableSeats += booking.passengers.length;
-      await flight.save();
-    }
-
     // Handle refund if there's a payment
     if (booking.paymentId) {
-      const payment = await Payment.findByIdAndUpdate(
+      await Payment.findByIdAndUpdate(
         booking.paymentId,
-        {
-          status: 'refunded',
-          refundAmount,
-        },
+        { status: 'refunded', refundAmount },
         { new: true }
       );
     }
@@ -234,20 +270,61 @@ export class BookingService {
     return booking;
   }
 
-  async getOccupiedSeats(flightId: string): Promise<string[]> {
-    const existingBookings = await Booking.find({
+  /**
+   * Returns seats that are either:
+   *  - Permanently booked (confirmed)
+   *  - In an active 8-minute hold by another user
+   *
+   * Optionally excludes the current user's own blocks so their selected
+   * seats don't show as blocked on the seat map they're looking at.
+   */
+  async getOccupiedSeats(
+    flightId: string,
+    excludeUserId?: string
+  ): Promise<{ occupiedSeats: string[]; blockedSeats: string[] }> {
+    // Confirmed bookings — permanently occupied
+    const confirmedBookings = await Booking.find({
       flightId,
-      status: { $in: ['confirmed', 'pending'] },
+      status: 'confirmed',
     });
 
     const occupiedSeats = new Set<string>();
-    existingBookings.forEach((booking) => {
+    confirmedBookings.forEach((booking) => {
       booking.passengers.forEach((passenger) => {
         occupiedSeats.add(passenger.seatNumber);
       });
     });
 
-    return Array.from(occupiedSeats);
+    // Also include pending bookings older than 8 minutes (they survived without paying)
+    // so they don't silently block seats indefinitely
+    const holdExpiry = new Date(Date.now() - SEAT_HOLD_MINUTES * 60 * 1000);
+    const recentPendingBookings = await Booking.find({
+      flightId,
+      status: 'pending',
+      createdAt: { $gte: holdExpiry }, // created within the last 8 minutes
+    });
+    recentPendingBookings.forEach((booking) => {
+      booking.passengers.forEach((passenger) => {
+        occupiedSeats.add(passenger.seatNumber);
+      });
+    });
+
+    // Active seat blocks from OTHER users (real-time holds)
+    const blockQuery: any = {
+      flightId,
+      expiresAt: { $gt: new Date() },
+    };
+    if (excludeUserId) {
+      blockQuery.userId = { $ne: excludeUserId };
+    }
+    const activeBlocks = await SeatBlock.find(blockQuery);
+    const blockedSeats = activeBlocks.map((b) => b.seatNumber);
+
+    // Return them separately so the frontend can style them differently (held vs booked)
+    return {
+      occupiedSeats: Array.from(occupiedSeats),
+      blockedSeats,
+    };
   }
 }
 

@@ -34,7 +34,7 @@ export class FlightService {
 
     // Build query - only add filters if provided
     const query: any = {};
-    
+
     if (origin) {
       const originValue = origin.trim();
       query.$or = [
@@ -42,7 +42,7 @@ export class FlightService {
         { 'origin.city': { $regex: `^${originValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' } },
       ];
     }
-    
+
     if (destination) {
       const destinationValue = destination.trim();
       const destinationMatch = {
@@ -59,7 +59,7 @@ export class FlightService {
         query.$or = destinationMatch.$or;
       }
     }
-    
+
     if (departureDate) {
       query.departureTime = {
         $gte: new Date(departureDate),
@@ -72,6 +72,9 @@ export class FlightService {
     if (cabinClass) {
       query['cabinClasses.type'] = cabinClass;
     }
+
+    // Never show cancelled flights in search results
+    query.status = { $nin: ['cancelled'] };
 
     // Build sort object
     const sortObj: any = {};
@@ -150,10 +153,34 @@ export class FlightService {
     return seatMap;
   }
 
-  async createFlight(flightData: any): Promise<IFlight> {
-    const flight = new Flight(flightData);
-    await flight.save();
-    return flight;
+  async createFlight(flightData: any): Promise<IFlight | IFlight[]> {
+    const recurringDays = flightData.recurringDays ? parseInt(flightData.recurringDays, 10) : 1;
+    if (isNaN(recurringDays) || recurringDays <= 1) {
+      const flight = new Flight(flightData);
+      await flight.save();
+      return flight;
+    }
+
+    const createdFlights: IFlight[] = [];
+    const baseDeparture = new Date(flightData.departureTime);
+    const baseArrival = new Date(flightData.arrivalTime);
+
+    for (let i = 0; i < recurringDays; i++) {
+      const departureTime = new Date(baseDeparture.getTime() + i * 24 * 60 * 60 * 1000);
+      const arrivalTime = new Date(baseArrival.getTime() + i * 24 * 60 * 60 * 1000);
+
+      const singleFlightData = {
+        ...flightData,
+        departureTime,
+        arrivalTime,
+      };
+      delete singleFlightData.recurringDays;
+
+      const flight = new Flight(singleFlightData);
+      await flight.save();
+      createdFlights.push(flight);
+    }
+    return createdFlights;
   }
 
   async updateFlight(id: string, updateData: any): Promise<IFlight> {

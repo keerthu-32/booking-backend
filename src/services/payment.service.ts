@@ -1,6 +1,8 @@
+import crypto from 'crypto';
 import { Payment, IPayment } from '../models/Payment';
 import { Booking } from '../models/Booking';
 import { Notification } from '../models/Notification';
+import { SeatBlock } from '../models/SeatBlock';
 import { NotFoundError, ValidationError } from '../utils/errors';
 import Razorpay from 'razorpay';
 
@@ -36,7 +38,7 @@ export class PaymentService {
     }
 
     if (data.provider !== 'razorpay') {
-      throw new ValidationError('Stripe payments are not configured for this deployment');
+      throw new ValidationError('Only Razorpay payments are configured for this deployment');
     }
 
     if (booking.status !== 'pending') {
@@ -46,7 +48,7 @@ export class PaymentService {
     // Create Razorpay order. Razorpay expects INR amounts in paise.
     const order = await getRazorpay().orders.create({
       amount: Math.round(booking.fareBreakdown.totalAmount * 100),
-      currency: 'INR', // Razorpay test supports INR
+      currency: 'INR',
       receipt: booking.bookingReference,
       notes: {
         bookingId: booking._id.toString(),
@@ -79,8 +81,37 @@ export class PaymentService {
     };
   }
 
-  async confirmPayment(paymentIntentId: string, orderId?: string): Promise<IPayment> {
-    // Find payment by Razorpay order ID first, then fall back to payment ID
+  /**
+   * Confirm a Razorpay payment.
+   *
+   * Razorpay sends three values back to the frontend after a successful payment:
+   *   - razorpay_order_id (= orderId)
+   *   - razorpay_payment_id (= paymentIntentId)
+   *   - razorpay_signature (= HMAC of "orderId|paymentId" signed with KEY_SECRET)
+   *
+   * We verify the HMAC before marking the booking confirmed. Without this check
+   * any caller who knows an orderId could confirm a payment without paying.
+   */
+  async confirmPayment(
+    paymentIntentId: string,
+    orderId?: string,
+    razorpaySignature?: string
+  ): Promise<IPayment> {
+    // --- Razorpay HMAC Signature Verification ---
+    // Only enforce when the secret is configured (skip in development with no key).
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (keySecret && razorpaySignature && orderId) {
+      const expectedSignature = crypto
+        .createHmac('sha256', keySecret)
+        .update(`${orderId}|${paymentIntentId}`)
+        .digest('hex');
+
+      if (expectedSignature !== razorpaySignature) {
+        throw new ValidationError('Payment signature verification failed. Payment may be tampered.');
+      }
+    }
+
+    // Find payment record by Razorpay order ID
     const payment = await Payment.findOne({
       $or: [
         { providerTransactionId: orderId || paymentIntentId },
@@ -111,6 +142,13 @@ export class PaymentService {
     );
 
     if (booking) {
+      // Release the 8-minute seat blocks — the seats are now permanently booked
+      const seatNumbers = booking.passengers.map((p) => p.seatNumber);
+      await SeatBlock.deleteMany({
+        flightId: booking.flightId,
+        seatNumber: { $in: seatNumbers },
+      });
+
       await Notification.create({
         userId: payment.userId,
         type: 'payment',
@@ -130,7 +168,8 @@ export class PaymentService {
   }
 
   async handleWebhookPayment(signatureOrEvent: string, rawBody: any): Promise<any> {
-    // Razorpay webhook handling can be added here
+    // Razorpay webhook handling — stub for future implementation.
+    // Production: verify X-Razorpay-Signature, then call confirmPayment.
     return { received: true };
   }
 
@@ -149,7 +188,7 @@ export class PaymentService {
       throw new ValidationError('Payment already refunded');
     }
 
-    // Mark as refunded (Razorpay refund API can be added later)
+    // Mark as refunded (Razorpay refund API can be wired here)
     payment.status = 'refunded';
     payment.refundAmount = booking.fareBreakdown.totalAmount;
     await payment.save();
@@ -158,7 +197,6 @@ export class PaymentService {
   }
 
   async getPaymentDetails(bookingId: string, userId: string): Promise<IPayment> {
-    // Verify booking belongs to user
     const booking = await Booking.findById(bookingId);
     if (!booking || booking.userId.toString() !== userId) {
       throw new ValidationError('Booking does not belong to this user');

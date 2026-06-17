@@ -59,16 +59,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Debug endpoint - check environment
-app.get('/debug/env', (req, res) => {
-  res.status(200).json({
-    nodeEnv: process.env.NODE_ENV,
-    port: process.env.PORT,
-    mongoUriSet: !!process.env.MONGO_URI,
-    mongoUriPrefix: process.env.MONGO_URI?.substring(0, 20) + '...',
-    frontendUrl: process.env.FRONTEND_URL,
-  });
-});
 
 // API Routes
 const apiVersion = process.env.API_VERSION || 'v1';
@@ -91,11 +81,15 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {
-    // Try to connect to MongoDB, but don't fail if it doesn't work
+    // Fail fast in production if MongoDB is unavailable; allow soft start in dev
     try {
       await connectDB();
     } catch (dbError) {
-      logger.error('MongoDB connection failed, but starting server anyway:', dbError);
+      if (process.env.NODE_ENV === 'production') {
+        logger.error('MongoDB connection failed. Exiting in production.');
+        process.exit(1);
+      }
+      logger.error('MongoDB connection failed, starting server anyway (dev mode):', dbError);
     }
 
     app.listen(PORT, () => {

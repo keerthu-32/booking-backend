@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { Booking } from '../models/Booking';
 import { bookingService } from '../services/booking.service';
 import { catchAsync } from '../utils/catchAsync';
 import { createBookingSchema } from '../validators';
@@ -23,13 +24,14 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   res.status(201).json({
     success: true,
     statusCode: 201,
-    message: 'Booking created successfully',
+    message: 'Booking created successfully. Your seats are held for 8 minutes.',
     data: {
       bookingId: booking._id,
       bookingReference: booking.bookingReference,
       status: booking.status,
       fareBreakdown: booking.fareBreakdown,
-      expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+      seatHoldMinutes: 8,
+      expiresAt: new Date(Date.now() + 8 * 60 * 1000), // 8-minute seat hold
     },
   });
 });
@@ -83,16 +85,14 @@ export const getAllBookings = catchAsync(async (req: Request, res: Response) => 
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 10;
 
-  // This would need pagination implementation
-  const bookings = await (require('../models').Booking as any)
-    .find()
+  const bookings = await Booking.find()
     .populate('userId')
     .populate('flightId')
     .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
     .limit(limit);
 
-  const total = await (require('../models').Booking as any).countDocuments();
+  const total = await Booking.countDocuments();
 
   res.status(200).json({
     success: true,
@@ -362,12 +362,19 @@ export const getOccupiedSeats = catchAsync(async (req: Request, res: Response) =
     throw new ValidationError('Flight ID is required');
   }
 
-  const occupiedSeats = await bookingService.getOccupiedSeats(flightId);
+  // Exclude the calling user's own blocks so their already-selected seats
+  // don't appear as blocked to themselves on the seat map
+  const excludeUserId = req.userId; // undefined if unauthenticated
+  const result = await bookingService.getOccupiedSeats(flightId, excludeUserId);
 
   res.status(200).json({
     success: true,
     statusCode: 200,
     message: 'Occupied seats retrieved successfully',
-    data: { occupiedSeats },
+    data: {
+      occupiedSeats: result.occupiedSeats,
+      blockedSeats: result.blockedSeats, // seats held by other users (8-min TTL)
+      seatHoldMinutes: 8,
+    },
   });
 });

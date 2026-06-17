@@ -39,11 +39,12 @@ export const errorHandler = (
     });
   }
 
-  // Default error response
+  // Default error response - avoid leaking internal details in production
+  const isDev = process.env.NODE_ENV !== 'production';
   return res.status(500).json({
     success: false,
     statusCode: 500,
-    message: error.message || 'Internal Server Error',
+    message: isDev ? (error.message || 'Internal Server Error') : 'Internal Server Error',
     errors: [],
   });
 };

@@ -1,5 +1,5 @@
 import { User, IUser } from '../models/User';
-import { generateAccessToken, generateRefreshToken } from '../utils/jwt';
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt';
 import { UnauthorizedError, ValidationError, ConflictError } from '../utils/errors';
 
 export class AuthService {
@@ -141,11 +141,10 @@ export class AuthService {
     };
   }
 
-  async login(email: string, password: string): Promise<{
-    user: Partial<IUser>;
-    accessToken: string;
-    refreshToken: string;
-  }> {
+  async login(
+    email: string,
+    password: string
+  ): Promise<{ user: Partial<IUser>; accessToken: string; refreshToken: string }> {
     const normalizedEmail = email.trim().toLowerCase();
 
     // Find user
@@ -191,8 +190,12 @@ export class AuthService {
   }
 
   async refreshAccessToken(refreshToken: string): Promise<{ accessToken: string }> {
-    // Verify refresh token
-    const user = await User.findOne({ refreshToken });
+    // Verify the token signature and expiry before doing a DB lookup.
+    // Without this check, any stored token (even expired/tampered) would pass.
+    const payload = verifyRefreshToken(refreshToken); // throws if invalid/expired
+
+    // Confirm it still matches what's stored for this user
+    const user = await User.findOne({ _id: payload.id, refreshToken });
     if (!user) {
       throw new UnauthorizedError('Invalid refresh token');
     }

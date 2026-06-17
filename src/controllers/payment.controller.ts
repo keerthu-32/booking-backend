@@ -3,7 +3,6 @@ import { paymentService } from '../services/payment.service';
 import { catchAsync } from '../utils/catchAsync';
 import { initiatePaymentSchema, confirmPaymentSchema } from '../validators';
 import { ValidationError } from '../utils/errors';
-import { verifyWebhookSignature } from '../integrations/stripe';
 
 export const initiatePayment = catchAsync(async (req: Request, res: Response) => {
   if (!req.userId) {
@@ -45,7 +44,8 @@ export const confirmPayment = catchAsync(async (req: Request, res: Response) => 
 
   const payment = await paymentService.confirmPayment(
     validatedData.data.paymentIntentId,
-    validatedData.data.orderId
+    validatedData.data.orderId,
+    validatedData.data.razorpaySignature
   );
 
   res.status(200).json({
@@ -57,26 +57,9 @@ export const confirmPayment = catchAsync(async (req: Request, res: Response) => 
 });
 
 export const webhook = catchAsync(async (req: Request, res: Response) => {
-  const sig = req.headers['stripe-signature'] as string;
-
-  if (!sig) {
-    throw new ValidationError('Missing Stripe signature');
-  }
-
-  const body = (req as any).rawBody || JSON.stringify(req.body);
-  const event = verifyWebhookSignature(body, sig);
-
-  if (!event) {
-    throw new ValidationError('Invalid webhook signature');
-  }
-
-  // Handle webhook event (pass signature + raw body for verification)
-  await paymentService.handleWebhookPayment(sig, body);
-
-  res.status(200).json({
-    success: true,
-    message: 'Webhook processed successfully',
-  });
+  // Razorpay webhook — currently a stub. Full implementation should verify
+  // the X-Razorpay-Signature header and process the event payload.
+  res.status(200).json({ success: true, message: 'Webhook received' });
 });
 
 export const requestRefund = catchAsync(async (req: Request, res: Response) => {

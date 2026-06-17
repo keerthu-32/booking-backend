@@ -35,7 +35,7 @@ export interface IFlight extends Document {
 
 const flightSchema = new Schema<IFlight>(
   {
-    flightNumber: { type: String, required: true, unique: true, index: true },
+    flightNumber: { type: String, required: true, index: true },
     airline: { type: String, required: true },
     origin: {
       iataCode: { type: String, required: true },
@@ -72,5 +72,8 @@ const flightSchema = new Schema<IFlight>(
   },
   { timestamps: true }
 );
+
+// Compound unique index so the same flight number can run on different days/times.
+flightSchema.index({ flightNumber: 1, departureTime: 1 }, { unique: true });
 
 export const Flight = mongoose.model<IFlight>('Flight', flightSchema);
