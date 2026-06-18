@@ -14,7 +14,7 @@ export interface PassengerData {
   firstName: string;
   lastName: string;
   dateOfBirth: string | Date;
-  passportNumber: string;
+  passportNumber?: string;
   nationality: string;
   seatNumber: string;
   mealPreference?: string;
@@ -53,6 +53,41 @@ export class BookingService {
     const uniqueSeats = new Set(seatNumbers);
     if (uniqueSeats.size !== seatNumbers.length) {
       throw new ValidationError('Duplicate seat numbers detected. Each passenger must have a unique seat.');
+    }
+
+    const isDomestic = flight.origin.country.trim().toLowerCase() === flight.destination.country.trim().toLowerCase();
+
+    // Validate passenger details uniqueness and passport presence (if international)
+    const seenPassengers = new Set<string>();
+    const seenPassports = new Set<string>();
+
+    for (let i = 0; i < data.passengers.length; i++) {
+      const p = data.passengers[i];
+
+      // Check passport number requirement for international flights
+      if (!isDomestic) {
+        if (!p.passportNumber || p.passportNumber.trim() === '') {
+          throw new ValidationError(`Passport number is required for passenger ${i + 1} (${p.firstName} ${p.lastName}) on international flights.`);
+        }
+      }
+
+      // Check unique passenger details (firstName + lastName + dateOfBirth)
+      const dobStr = p.dateOfBirth instanceof Date ? p.dateOfBirth.toISOString().split('T')[0] : new Date(p.dateOfBirth).toISOString().split('T')[0];
+      const identityKey = `${p.firstName.trim().toLowerCase()}|${p.lastName.trim().toLowerCase()}|${dobStr}`;
+
+      if (seenPassengers.has(identityKey)) {
+        throw new ValidationError(`Duplicate passenger details detected for ${p.firstName} ${p.lastName}. Each seat must be booked for a unique traveler.`);
+      }
+      seenPassengers.add(identityKey);
+
+      // Check passport uniqueness if passport is provided
+      if (p.passportNumber && p.passportNumber.trim() !== '') {
+        const passportKey = p.passportNumber.trim().toLowerCase();
+        if (seenPassports.has(passportKey)) {
+          throw new ValidationError(`Duplicate passport number detected: ${p.passportNumber}. Each traveler must have a unique passport.`);
+        }
+        seenPassports.add(passportKey);
+      }
     }
 
     // Calculate fare

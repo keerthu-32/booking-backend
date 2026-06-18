@@ -64,7 +64,7 @@ export const createBookingSchema = z.object({
       firstName: z.string().min(1, 'First name is required'),
       lastName: z.string().min(1, 'Last name is required'),
       dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
-      passportNumber: z.string().min(1, 'Passport number is required'),
+      passportNumber: z.string().optional().or(z.literal('')),
       nationality: z.string().min(1, 'Nationality is required'),
       seatNumber: z.string().min(1, 'Seat number is required'),
       mealPreference: z.string().optional(),
@@ -82,5 +82,5 @@ export const initiatePaymentSchema = z.object({
 export const confirmPaymentSchema = z.object({
   paymentIntentId: z.string().min(1, 'Payment ID is required'),
   orderId: z.string().optional(),
-  razorpaySignature: z.string().min(1, 'Payment signature is required'),
+  razorpaySignature: z.string().optional(),
 });

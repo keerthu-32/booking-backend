@@ -100,7 +100,10 @@ export class PaymentService {
     // --- Razorpay HMAC Signature Verification ---
     // Only enforce when the secret is configured (skip in development with no key).
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
-    if (keySecret && razorpaySignature && orderId) {
+    if (keySecret) {
+      if (!razorpaySignature || !orderId) {
+        throw new ValidationError('Payment signature and order ID are required for verification.');
+      }
       const expectedSignature = crypto
         .createHmac('sha256', keySecret)
         .update(`${orderId}|${paymentIntentId}`)

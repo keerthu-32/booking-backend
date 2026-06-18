@@ -8,7 +8,7 @@ export interface IBooking extends Document {
     firstName: string;
     lastName: string;
     dateOfBirth: Date;
-    passportNumber: string;
+    passportNumber?: string;
     nationality: string;
     seatNumber: string;
     mealPreference?: string;
@@ -38,7 +38,7 @@ const bookingSchema = new Schema<IBooking>(
         firstName: { type: String, required: true },
         lastName: { type: String, required: true },
         dateOfBirth: { type: Date, required: true },
-        passportNumber: { type: String, required: true },
+        passportNumber: { type: String },
         nationality: { type: String, required: true },
         seatNumber: { type: String, required: true },
         mealPreference: { type: String },
