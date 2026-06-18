@@ -6,14 +6,18 @@ import { SeatBlock } from '../models/SeatBlock';
 import { NotFoundError, ValidationError } from '../utils/errors';
 import Razorpay from 'razorpay';
 
+import logger from '../config/logger';
+
 // Lazy initialization - only create when first used, after env vars are loaded
 let razorpayInstance: Razorpay | null = null;
 
 function getRazorpay(): Razorpay {
   if (!razorpayInstance) {
+    const keyId = (process.env.RAZORPAY_KEY_ID || '').trim().replace(/^['"]|['"]$/g, '');
+    const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim().replace(/^['"]|['"]$/g, '');
     razorpayInstance = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID || '',
-      key_secret: process.env.RAZORPAY_KEY_SECRET || '',
+      key_id: keyId,
+      key_secret: keySecret,
     });
   }
   return razorpayInstance;
@@ -99,8 +103,9 @@ export class PaymentService {
   ): Promise<IPayment> {
     // --- Razorpay HMAC Signature Verification ---
     // Only enforce when the secret is configured (skip in development with no key).
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    let keySecret = process.env.RAZORPAY_KEY_SECRET;
     if (keySecret) {
+      keySecret = keySecret.trim().replace(/^['"]|['"]$/g, '');
       if (!razorpaySignature || !orderId) {
         throw new ValidationError('Payment signature and order ID are required for verification.');
       }
@@ -109,7 +114,18 @@ export class PaymentService {
         .update(`${orderId}|${paymentIntentId}`)
         .digest('hex');
 
+      logger.info('Razorpay Signature Verification Debug Info:', {
+        orderId,
+        paymentIntentId,
+        receivedSignature: razorpaySignature,
+        expectedSignature,
+        secretLength: process.env.RAZORPAY_KEY_SECRET?.length,
+        cleanedSecretLength: keySecret.length,
+        hasQuotes: process.env.RAZORPAY_KEY_SECRET !== keySecret
+      });
+
       if (expectedSignature !== razorpaySignature) {
+        logger.error('Signature mismatch detected during verification.');
         throw new ValidationError('Payment signature verification failed. Payment may be tampered.');
       }
     }

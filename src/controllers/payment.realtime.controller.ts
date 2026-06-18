@@ -69,8 +69,11 @@ export const confirmPayment = catchAsync(async (req: Request, res: Response) => 
   const validatedData = confirmPaymentSchema.parse(req.body);
 
   try {
-    // Confirm payment
-    const payment = await paymentService.confirmPayment(validatedData.paymentIntentId);
+    const payment = await paymentService.confirmPayment(
+      validatedData.paymentIntentId,
+      validatedData.orderId,
+      validatedData.razorpaySignature
+    );
 
     // Get booking info
     const booking = await Booking.findById(payment.bookingId);
